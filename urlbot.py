@@ -43,7 +43,9 @@ def html_entity_decode_char(m):
 
 def html_entity_decode(string):
     return html_pattern2.sub(lambda x: unichr(int(x.group(1))), html_pattern.sub(html_entity_decode_char, string))
+#sql connector class
 
+#end sql connector class
 class Sender(object):
   def __init__(self, urlbot, src, to, url, at_time, apikey, dbfile):
     self.thread = Thread(target=self.process)
@@ -114,7 +116,7 @@ class Sender(object):
 
 
 class UrlBot(object):
-  def __init__(self, network, chans, nick, port=6667, debug=0, title_length=300, max_page_size=1048576, irc_timeout=360.0, message_delay=3, charset='utf-8', nickserv_pass=None, apikey=None, dbfile=None):
+  def __init__(self, network, chans, nick, port=6667, debug=0, title_length=300, max_page_size=1048576, irc_timeout=360.0, message_delay=3, charset='utf-8', nickserv_pass=None, apikey=None, dbfile=None, mysql=None):
     self.chans=chans
     self.nick=nick
     self.title_length=title_length
@@ -133,6 +135,7 @@ class UrlBot(object):
     self.message_delay=message_delay
     self.apikey = apikey
     self.dbfile = dbfile
+    self.mysql = mysql
     
     self.url_regexp=re.compile("""((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))""")
     self.math_regexp=re.compile(":\d")
