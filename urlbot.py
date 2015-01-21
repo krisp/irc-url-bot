@@ -280,8 +280,6 @@ if __name__ == '__main__' :
     f.write(os.getpid())
     f.close()
 
-  dbfile = params['dbfile']
-
   try:
     UrlBot(**params)
   except (KeyboardInterrupt,):
