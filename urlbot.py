@@ -45,14 +45,15 @@ def html_entity_decode(string):
     return html_pattern2.sub(lambda x: unichr(int(x.group(1))), html_pattern.sub(html_entity_decode_char, string))
 
 class Sender(object):
-  def __init__(self, urlbot, to, url, at_time, apikey, db):
+  def __init__(self, urlbot, src, to, url, at_time, apikey, dbfile):
     self.thread = Thread(target=self.process)
     self.to = to
     self.url = url
     self.urlbot=urlbot
     self.at_time=at_time
     self.apikey=apikey
-    self.db=db
+    self.dbfile=dbfile
+    self.src=src
 
   def start(self):
     self.thread.start()
@@ -93,14 +94,17 @@ class Sender(object):
 	  title = "%s (%s)" % (j['id'],title)
 	  self.urlbot.say(self.to, html_entity_decode(title.replace('\n', ' ').strip()))
           # add link to database
-	  try:
-	    if self.db is not None:
-	      c = self.db.cursor()
-	      vals = [(date(), j['id'], self.url, self.to, "none"),]
-	      c.execute('insert into urlbot values (?,?,?,?,?)', vals)
-	      self.db.commit()
-	  except: 
-	    myprint("Error adding url to database: %s" % sys.exc_info()[0])
+	  if self.dbfile is not None:
+	     try:
+		db = sqlite3.connect(dbfile)
+		c = db.cursor()
+		c.execute('''create table if not exists urlbot (date text, shorturl text, longurl text, chan text, nick text)''')
+		db.commit()
+	        c.execute('''insert into urlbot(date,shorturl,longurl,chan,nick) values (?,?,?,?,?)''', (date(), j['id'], self.url, self.to, self.src))
+	        db.commit()
+	     except: 
+	        type, value, tb = sys.exc_info()
+	        myprint("Error adding url to database: %s: %s" % (type, value.message))
     except:
 	myprint("Exception in url shortener")
     
@@ -129,20 +133,10 @@ class UrlBot(object):
     self.message_delay=message_delay
     self.apikey = apikey
     self.dbfile = dbfile
-    self.db=None
     
     self.url_regexp=re.compile("""((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))""")
     self.math_regexp=re.compile(":\d")
     
-    if self.dbfile is not None:
-      try:
-        self.db = sqlite3.connect(self.dbfile)
-	c = self.db.cursor()
-	c.execute('''create table if not exists urlbot (date text, shorturl text, longurl text, chan text, nick text)''')
-	self.db.commit()
-      except:
-        myprint("Exception opening sqlite db")
-
     while True:
       try:
         self.irc = socket.socket ( socket.AF_INET, socket.SOCK_STREAM )
@@ -205,7 +199,7 @@ class UrlBot(object):
                         url=url[0]
                         if not url.startswith('http'):
                             url='http://'+url
-                        Sender(self, to, url, self.last_message, self.apikey, self.db).start()
+                        Sender(self, src, to, url, self.last_message, self.apikey, self.dbfile).start()
                         self.last_message = max(time.time(), self.last_message) + self.message_delay
 		m = re.match(self.math_regexp,data_split[3])
 		if m is not None:
@@ -247,6 +241,7 @@ if __name__ == '__main__' :
   import sys
   import os
   import imp
+  import sqlite3
 
   params_name = UrlBot.__init__.func_code.co_varnames[:UrlBot.__init__.func_code.co_argcount][1:]
   default_args = UrlBot.__init__.func_defaults
@@ -284,6 +279,8 @@ if __name__ == '__main__' :
     f = open(pidfile, 'w')
     f.write(os.getpid())
     f.close()
+
+  dbfile = params['dbfile']
 
   try:
     UrlBot(**params)
