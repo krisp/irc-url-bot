@@ -9,7 +9,6 @@
 # along with this program; if not, write to the Free Software Foundation, Inc., 51
 # Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-from __future__ import division
 import socket
 import time
 import re
@@ -80,7 +79,7 @@ class Sender(object):
 	    title=soup.title.string
 	    # add google link shorten api code here
     else:
-    	soup.title = ""
+    	title = "Untitled"
     try:
 	apiurl = "https://www.googleapis.com/urlshortener/v1/url?key=%s" % self.apikey
 	body = {'longUrl': self.url}
@@ -93,9 +92,18 @@ class Sender(object):
 	  myprint("id = %s" % j['id'])
 	  title = "%s (%s)" % (j['id'],title)
 	  self.urlbot.say(self.to, html_entity_decode(title.replace('\n', ' ').strip()))
-
+          # add link to database
+	  try:
+	    if self.db is not None:
+	      c = self.db.cursor()
+	      vals = [(date(), j['id'], self.url, self.to, "none"),]
+	      c.execute('insert into urlbot values (?,?,?,?,?)', vals)
+	      self.db.commit()
+	  except: 
+	    myprint("Error adding url to database: %s" % sys.exc_info()[0])
     except:
 	myprint("Exception in url shortener")
+    
 
 	# end link shorten
 
