@@ -9,6 +9,7 @@
 # along with this program; if not, write to the Free Software Foundation, Inc., 51
 # Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+from __future__ import division
 import socket
 import time
 import re
@@ -19,6 +20,10 @@ from BeautifulSoup import BeautifulSoup
 import os
 import sys
 import datetime
+import requests
+import json
+import sqlite3
+from py_expression_eval import Parser
 
 
 html_pattern = re.compile("&(\w+?);")
@@ -40,15 +45,15 @@ def html_entity_decode_char(m):
 def html_entity_decode(string):
     return html_pattern2.sub(lambda x: unichr(int(x.group(1))), html_pattern.sub(html_entity_decode_char, string))
 
-
-
 class Sender(object):
-  def __init__(self, urlbot, to, url, at_time):
+  def __init__(self, urlbot, to, url, at_time, apikey, db):
     self.thread = Thread(target=self.process)
     self.to = to
     self.url = url
     self.urlbot=urlbot
     self.at_time=at_time
+    self.apikey=apikey
+    self.db=db
 
   def start(self):
     self.thread.start()
@@ -68,18 +73,36 @@ class Sender(object):
     except urllib2.HTTPError as e:
         sys.stderr.write("HTTPError when fetching %s : %s\n" % (e.url, e))
         return
-    if not soup.title:
-        return
-    if len(soup.title.string) > self.urlbot.title_length:
-        title=soup.title.string[0:self.urlbot.title_length] + u'…'
+    if soup.title:
+        if len(soup.title.string) > self.urlbot.title_length:
+    	    title=soup.title.string[0:self.urlbot.title_length] + u'…'
+	else:
+	    title=soup.title.string
+	    # add google link shorten api code here
     else:
-        title=soup.title.string
-    self.urlbot.say(self.to, html_entity_decode(title.replace('\n', ' ').strip()))
+    	soup.title = ""
+    try:
+	apiurl = "https://www.googleapis.com/urlshortener/v1/url?key=%s" % self.apikey
+	body = {'longUrl': self.url}
+	headers = {'Content-type': 'application/json'}
+	r = requests.post(apiurl, data=json.dumps(body), headers=headers)
+	if r.status_code > 400:
+	  myprint("error with shorturl: %s %s" % (r.status_code, r.content))
+	else:
+	  j = r.json()
+	  myprint("id = %s" % j['id'])
+	  title = "%s (%s)" % (j['id'],title)
+	  self.urlbot.say(self.to, html_entity_decode(title.replace('\n', ' ').strip()))
+
+    except:
+	myprint("Exception in url shortener")
+
+	# end link shorten
 
 
 
 class UrlBot(object):
-  def __init__(self, network, chans, nick, port=6667, debug=0, title_length=300, max_page_size=1048576, irc_timeout=360.0, message_delay=3, charset='utf-8', nickserv_pass=None):
+  def __init__(self, network, chans, nick, port=6667, debug=0, title_length=300, max_page_size=1048576, irc_timeout=360.0, message_delay=3, charset='utf-8', nickserv_pass=None, apikey=None, dbfile=None):
     self.chans=chans
     self.nick=nick
     self.title_length=title_length
@@ -94,18 +117,33 @@ class UrlBot(object):
     self.M=None
     self.debug=debug
     self.last_message=0
+    self.networkidx=0
     self.message_delay=message_delay
+    self.apikey = apikey
+    self.dbfile = dbfile
+    self.db=None
     
     self.url_regexp=re.compile("""((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))""")
+    self.math_regexp=re.compile(":\d")
     
+    if self.dbfile is not None:
+      try:
+        self.db = sqlite3.connect(self.dbfile)
+	c = self.db.cursor()
+	c.execute('''create table if not exists urlbot (date text, shorturl text, longurl text, chan text, nick text)''')
+	self.db.commit()
+      except:
+        myprint("Exception opening sqlite db")
+
     while True:
       try:
         self.irc = socket.socket ( socket.AF_INET, socket.SOCK_STREAM )
         self.irc.settimeout(irc_timeout)
         myprint("Connection to irc")
-        self.irc.connect ( ( network, port ) )
+        self.irc.connect ( ( network[self.networkidx], port ) )
+	
         #print(self.irc.recv ( 4096 ))
-        self.send ( u'USER %s %s %s :Python IRC' % (nick,nick,nick) )
+        self.send ( u'USER %s %s %s :hello there' % (nick,nick,nick) )
         self.send ( u'NICK %s' % nick )
         while True:
           data = self.irc.recv ( 4096 )
@@ -159,10 +197,16 @@ class UrlBot(object):
                         url=url[0]
                         if not url.startswith('http'):
                             url='http://'+url
-                        Sender(self, to, url, self.last_message).start()
+                        Sender(self, to, url, self.last_message, self.apikey, self.db).start()
                         self.last_message = max(time.time(), self.last_message) + self.message_delay
-
-
+		m = re.match(self.math_regexp,data_split[3])
+		if m is not None:
+		    try:
+		        parser = Parser()
+		        x = parser.parse(data_split[3].split(':')[1]).evaluate({})
+		        self.say(to, x)
+		    except:
+		        myprint("Exception parsing math")
 
             if connected:
               if nick_bool and time.time() > nick_next:
