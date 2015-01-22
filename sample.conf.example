@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 params = {
 # IRC configuration
-'network':'irc.example.net',
+'network':['irc.example.com','irc.example2.com'],
 #'port':6667,
-'chans':["#channel"],
-'nick':"urlbot",
+'chans':["#krisp2"],
+'nick':"ln-s",
+#'apikey':"googleapikey",
+#'dbfile':"bot.sdb",
 #'irc_timeout':360.0,
 #'nickserv_pass':None,
 
