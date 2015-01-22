@@ -92,13 +92,13 @@ class Sender(object):
 
     try:
 	try: 
-	  d = bitly_api.Connection(access_token=self.bitly).shorten(self.url)
+	  shorturl = bitly_api.Connection(access_token=self.bitly).shorten(self.url)['url']
 	except:
           type, value, tb = sys.exc_info()
           myprint("Exception obtaining bitly: %s: %s"% (type, value))
 	  return
 
-        title = "%s (%s)" % (d['url'], title)
+        title = "%s (%s)" % (shorturl, title)
 	self.urlbot.say(self.to, html_entity_decode(title.replace('\n', ' ').strip()))
 	
         if self.dbfile is not None:
@@ -107,7 +107,7 @@ class Sender(object):
 		c = db.cursor()
 		c.execute('''create table if not exists urlbot (date text, shorturl text, longurl text, chan text, nick text)''')
 		db.commit()
-	        c.execute('''insert into urlbot(date,shorturl,longurl,chan,nick) values (?,?,?,?,?)''', (date(), d['url'], self.url, self.to, self.src))
+	        c.execute('''insert into urlbot(date,shorturl,longurl,chan,nick) values (?,?,?,?,?)''', (date(), shorturl, self.url, self.to, self.src))
 	        db.commit()
 	     except: 
 	        type, value, tb = sys.exc_info()
