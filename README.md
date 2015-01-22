@@ -6,6 +6,9 @@ This is a IRC bot written in python that get pages title of urls post in a chann
 
 ### Installation
 
+Look at the imports and install the modules you are missing with pip. Copy the sample config, edit it
+to your liking, and run it from the command line. You can also:
+
 ```# make install```
 
 ### Usage
