@@ -253,7 +253,6 @@ if __name__ == '__main__' :
   import sys
   import os
   import imp
-  import sqlite3
 
   params_name = UrlBot.__init__.func_code.co_varnames[:UrlBot.__init__.func_code.co_argcount][1:]
   default_args = UrlBot.__init__.func_defaults
