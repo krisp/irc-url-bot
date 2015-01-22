@@ -23,6 +23,7 @@ import requests
 import json
 import sqlite3
 import random
+import bitly_api
 from py_expression_eval import Parser
 
 
@@ -48,13 +49,13 @@ def html_entity_decode(string):
 
 #end sql connector class
 class Sender(object):
-  def __init__(self, urlbot, src, to, url, at_time, apikey, dbfile):
+  def __init__(self, urlbot, src, to, url, at_time, dbfile, bitly):
     self.thread = Thread(target=self.process)
     self.to = to
     self.url = url
     self.urlbot=urlbot
     self.at_time=at_time
-    self.apikey=apikey
+    self.bitly=bitly
     self.dbfile=dbfile
     self.src=src
 
@@ -90,31 +91,30 @@ class Sender(object):
 	myprint("Exception when retreiving title: %s: %s"% (type, value))
 
     try:
-	apiurl = "https://www.googleapis.com/urlshortener/v1/url?key=%s" % self.apikey
-	body = {'longUrl': self.url}
-	headers = {'Content-type': 'application/json'}
-	r = requests.post(apiurl, data=json.dumps(body), headers=headers)
-	if r.status_code > 400:
-	  myprint("error with shorturl: %s %s" % (r.status_code, r.content))
-	else:
-	  j = r.json()
-	  myprint("id = %s" % j['id'])
-	  title = "%s (%s)" % (j['id'],title)
-	  self.urlbot.say(self.to, html_entity_decode(title.replace('\n', ' ').strip()))
-          # add link to database
-	  if self.dbfile is not None:
+	try: 
+	  d = bitly_api.Connection(access_token=self.bitly).shorten(self.url)
+	except:
+          type, value, tb = sys.exc_info()
+          myprint("Exception obtaining bitly: %s: %s"% (type, value))
+	  return
+
+        title = "%s (%s)" % (d['url'], title)
+	self.urlbot.say(self.to, html_entity_decode(title.replace('\n', ' ').strip()))
+	
+        if self.dbfile is not None:
 	     try:
 		db = sqlite3.connect(self.dbfile)
 		c = db.cursor()
 		c.execute('''create table if not exists urlbot (date text, shorturl text, longurl text, chan text, nick text)''')
 		db.commit()
-	        c.execute('''insert into urlbot(date,shorturl,longurl,chan,nick) values (?,?,?,?,?)''', (date(), j['id'], self.url, self.to, self.src))
+	        c.execute('''insert into urlbot(date,shorturl,longurl,chan,nick) values (?,?,?,?,?)''', (date(), d['url'], self.url, self.to, self.src))
 	        db.commit()
 	     except: 
 	        type, value, tb = sys.exc_info()
 	        myprint("Error adding url to database: %s: %s" % (type, value.message))
     except:
-	myprint("Exception in url shortener")
+        type, value, tb = sys.exc_info()
+	myprint("Exception in url shortener: %s: %s" % (type, value))
     
 
 	# end link shorten
@@ -122,7 +122,7 @@ class Sender(object):
 
 
 class UrlBot(object):
-  def __init__(self, network, chans, nick, port=6667, debug=0, title_length=300, max_page_size=1048576, irc_timeout=360.0, message_delay=3, charset='utf-8', nickserv_pass=None, apikey=None, dbfile=None, mysql=None):
+  def __init__(self, network, chans, nick, port=6667, debug=0, title_length=300, max_page_size=1048576, irc_timeout=360.0, message_delay=3, charset='utf-8', nickserv_pass=None, dbfile=None, mysql=None, bitly=None):
     self.chans=chans
     self.nick=nick
     self.title_length=title_length
@@ -139,9 +139,9 @@ class UrlBot(object):
     self.last_message=0
     self.networkidx=0
     self.message_delay=message_delay
-    self.apikey = apikey
     self.dbfile = dbfile
     self.mysql = mysql
+    self.bitly = bitly
     
     self.url_regexp=re.compile("""((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))""")
     self.math_regexp=re.compile(":\d")
@@ -210,7 +210,7 @@ class UrlBot(object):
                         url=url[0]
                         if not url.startswith('http'):
                             url='http://'+url
-                        Sender(self, src, to, url, self.last_message, self.apikey, self.dbfile).start()
+                        Sender(self, src, to, url, self.last_message, self.dbfile, self.bitly).start()
                         self.last_message = max(time.time(), self.last_message) + self.message_delay
 		m = re.match(self.math_regexp,data_split[3])
 		if m is not None:
