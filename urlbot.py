@@ -22,6 +22,7 @@ import datetime
 import requests
 import json
 import sqlite3
+import random
 from py_expression_eval import Parser
 
 
@@ -71,18 +72,23 @@ class Sender(object):
         time.sleep(1)
     myprint("process %r" % self.url)
     try:
-        soup = BeautifulSoup(urllib2.urlopen(self.url).read(self.urlbot.max_page_size))
+	r = urllib2.Request(self.url)
+	r.add_header('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10; rv:33.0) Gecko/20100101 Firefox/33.0')
+        soup = BeautifulSoup(urllib2.urlopen(r).read(self.urlbot.max_page_size))
+        if soup.title:
+           if len(soup.title.string) > self.urlbot.title_length:
+    	       title=soup.title.string[0:self.urlbot.title_length] + u'…'
+	   else:
+	       title=soup.title.string
+        else:
+    	   title = "Untitled"
     except urllib2.HTTPError as e:
-        sys.stderr.write("HTTPError when fetching %s : %s\n" % (e.url, e))
+        myprint("HTTPError when fetching %s : %s\n" % (e.url, e))
         return
-    if soup.title:
-        if len(soup.title.string) > self.urlbot.title_length:
-    	    title=soup.title.string[0:self.urlbot.title_length] + u'…'
-	else:
-	    title=soup.title.string
-	    # add google link shorten api code here
-    else:
-    	title = "Untitled"
+    except:
+        type, value, tb = sys.exc_info()
+	myprint("Exception when retreiving title: %s: %s"% (type, value))
+
     try:
 	apiurl = "https://www.googleapis.com/urlshortener/v1/url?key=%s" % self.apikey
 	body = {'longUrl': self.url}
@@ -98,7 +104,7 @@ class Sender(object):
           # add link to database
 	  if self.dbfile is not None:
 	     try:
-		db = sqlite3.connect(dbfile)
+		db = sqlite3.connect(self.dbfile)
 		c = db.cursor()
 		c.execute('''create table if not exists urlbot (date text, shorturl text, longurl text, chan text, nick text)''')
 		db.commit()
@@ -142,10 +148,12 @@ class UrlBot(object):
     
     while True:
       try:
-        self.irc = socket.socket ( socket.AF_INET, socket.SOCK_STREAM )
+	info = socket.getaddrinfo( network[random.randrange(len(network))], port )
+	myprint(info[0])
+        self.irc = socket.socket ( info[0][0], socket.SOCK_STREAM )
         self.irc.settimeout(irc_timeout)
-        myprint("Connection to irc")
-        self.irc.connect ( ( network[self.networkidx], port ) )
+        myprint("Connection to irc %s" % info[0][4][0] )
+        self.irc.connect ( ( info[0][4][0], info[0][4][1] ) )
 	
         #print(self.irc.recv ( 4096 ))
         self.send ( u'USER %s %s %s :hello there' % (nick,nick,nick) )
@@ -217,7 +225,8 @@ class UrlBot(object):
               if nick_bool and time.time() > nick_next:
                 self.send ( u'NICK %s' % nick )
                 nick_bool=False
-                
+      except () as e:
+        myprint("Exception in irc thread: %s" % e)
       finally:
         if self.irc:
             try: self.irc.close()
