@@ -48,6 +48,54 @@ def html_entity_decode(string):
 #sql connector class
 
 #end sql connector class
+
+class Shorten:
+  def __init__(self,token,url):
+    self.token=token
+    self.url=url
+  def bitly(self):
+    try:
+      return bitly_api.Connection(access_token=self.token).shorten(self.url)['url']
+    except:
+      type, value, tb = sys.exc_info()
+      myprint("Exception in url shortener: %s: %s" % (type, value))
+      return None
+  def google(self):
+      pass #todo
+
+class DBConnector:
+  def __init__(self, shorturl, url, src, to, dbfile=None, mysql=None):
+    self.dbfile=dbfile
+    self.mysql=mysql
+    self.url=url
+    self.to=to
+    self.src=src
+    self.thread=Thread(target=self.run)
+    self.shorturl=shorturl
+
+  def start(self):
+    self.thread.start()
+
+  def join(self):
+    self.thread.join()
+
+  def test(self):
+    return self.thread.is_alive()
+
+  def run(self):
+    if self.dbfile is not None:
+      try:
+	db = sqlite3.connect(self.dbfile)
+	c = db.cursor()
+	c.execute('''create table if not exists urlbot (date text, shorturl text, longurl text, chan text, nick text)''')
+	db.commit()
+	c.execute('''insert into urlbot(date,shorturl,longurl,chan,nick) values (?,?,?,?,?)''', (date(), self.shorturl, self.url, self.to, self.src))
+	db.commit()
+      except: 
+	type, value, tb = sys.exc_info()
+	myprint("Error adding url to database: %s: %s" % (type, value.message))
+   
+
 class Sender(object):
   def __init__(self, urlbot, src, to, url, at_time, dbfile, bitly):
     self.thread = Thread(target=self.process)
@@ -91,27 +139,16 @@ class Sender(object):
 	myprint("Exception when retreiving title: %s: %s"% (type, value))
 
     try:
-	try: 
-	  shorturl = bitly_api.Connection(access_token=self.bitly).shorten(self.url)['url']
-	except:
-          type, value, tb = sys.exc_info()
-          myprint("Exception obtaining bitly: %s: %s"% (type, value))
+	shorturl = Shorten(self.bitly,self.url).bitly()
+	if shorturl is None:
 	  return
 
         title = "%s (%s)" % (shorturl, title)
+
 	self.urlbot.say(self.to, html_entity_decode(title.replace('\n', ' ').strip()))
+
+	DBConnector(shorturl, self.url, self.src, self.to, dbfile=self.dbfile).start()
 	
-        if self.dbfile is not None:
-	     try:
-		db = sqlite3.connect(self.dbfile)
-		c = db.cursor()
-		c.execute('''create table if not exists urlbot (date text, shorturl text, longurl text, chan text, nick text)''')
-		db.commit()
-	        c.execute('''insert into urlbot(date,shorturl,longurl,chan,nick) values (?,?,?,?,?)''', (date(), shorturl, self.url, self.to, self.src))
-	        db.commit()
-	     except: 
-	        type, value, tb = sys.exc_info()
-	        myprint("Error adding url to database: %s: %s" % (type, value.message))
     except:
         type, value, tb = sys.exc_info()
 	myprint("Exception in url shortener: %s: %s" % (type, value))
