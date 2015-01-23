@@ -199,7 +199,7 @@ class UrlBot(object):
       try:
        for net in network:
 	myprint("Looking up %s" % net)
-        info = socket.getaddrinfo( net, 6667)
+        info = socket.getaddrinfo( net, port)
         srv = None
         if prefer_ipv6:
           for i in info:
