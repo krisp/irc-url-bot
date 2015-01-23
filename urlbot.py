@@ -267,7 +267,8 @@ class UrlBot(object):
 		    if m is not None:
 		      try:
 		        parser = Parser()
-		        x = parser.parse(data_split[3].split(':')[1]).evaluate({})
+			inp = ' '.join(data_split[3:]).replace(' ','').replace(':','').strip()
+		        x = parser.parse(inp).evaluate({})
 		        self.say(to, x)
 		      except:
 		        myprint("Exception parsing math")
