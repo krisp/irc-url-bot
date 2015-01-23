@@ -199,17 +199,10 @@ class UrlBot(object):
       try:
        for net in network:
 	myprint("Looking up %s" % net)
-        info = socket.getaddrinfo( net, port)
-        srv = None
-        if prefer_ipv6:
-          for i in info:
-            if i[0] == 10:
-              srv = i
-              break
-        if srv is None:
-          srv = info[0]
+        info = socket.getaddrinfo(net, port)
+        ipvx = list([filter((lambda x: x[0] == 10), info), filter((lambda x: x[0] == 2), info)])
+        srv = ipvx[0][0] if (len(ipvx[0]) and prefer_ipv6) else ipvx[1][0]
 
-	myprint(srv)
         self.irc = socket.socket ( srv[0], socket.SOCK_STREAM )
         self.irc.settimeout(irc_timeout)
         myprint("Connection to irc %s" % srv[4][0] )
