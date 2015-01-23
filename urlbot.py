@@ -263,13 +263,14 @@ class UrlBot(object):
                             url='http://'+url
                         Sender(self, src, to, url, self.last_message, self.dbfile, self.bitly).start()
                         self.last_message = max(time.time(), self.last_message) + self.message_delay
-		m = re.match(self.math_regexp,data_split[3])
-		if m is not None:
-		    try:
+		    
+                    m = re.match(self.math_regexp,data_split[3])
+		    if m is not None:
+		      try:
 		        parser = Parser()
 		        x = parser.parse(data_split[3].split(':')[1]).evaluate({})
 		        self.say(to, x)
-		    except:
+		      except:
 		        myprint("Exception parsing math")
 
             if connected:

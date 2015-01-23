@@ -10,4 +10,4 @@ Look at the imports and install the modules you are missing with pip. Copy the s
 to your liking, and run it from the command line.
 
 ### Usage
-  ```python urlbot.py <confile>``
+  ``python urlbot.py <confile>``
