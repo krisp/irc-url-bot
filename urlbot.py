@@ -58,10 +58,22 @@ class Shorten:
       return bitly_api.Connection(access_token=self.token).shorten(self.url)['url']
     except:
       type, value, tb = sys.exc_info()
-      myprint("Exception in url shortener: %s: %s" % (type, value))
+      myprint("Exception in Shorten::Bitly: %s: %s" % (type, value))
       return None
   def google(self):
-      pass #todo
+    apiurl = "https://www.googleapis.com/urlshortener/v1/url?key=%s" % self.token
+    body = {'longUrl': self.url}
+    headers = {'Content-type': 'application/json'}
+    try:
+     r = requests.post(apiurl, data=json.dumps(body), headers=headers)
+     if r.status_code > 400:
+       myprint("error with shorturl: %s %s" % (r.status_code, r.content))
+     else:
+       j = r.json()
+       return j['id']
+     return None
+    except:
+     return None
 
 class DBConnector:
   def __init__(self, shorturl, url, src, to, dbfile=None, mysql=None):
@@ -74,6 +86,7 @@ class DBConnector:
     self.shorturl=shorturl
 
   def start(self):
+    self.db = sqlite3.connect(self.dbfile)
     self.thread.start()
 
   def join(self):
@@ -85,8 +98,7 @@ class DBConnector:
   def run(self):
     if self.dbfile is not None:
       try:
-	db = sqlite3.connect(self.dbfile)
-	c = db.cursor()
+	c = self.db.cursor()
 	c.execute('''create table if not exists urlbot (date text, shorturl text, longurl text, chan text, nick text)''')
 	db.commit()
 	c.execute('''insert into urlbot(date,shorturl,longurl,chan,nick) values (?,?,?,?,?)''', (date(), self.shorturl, self.url, self.to, self.src))
@@ -151,7 +163,7 @@ class Sender(object):
 	
     except:
         type, value, tb = sys.exc_info()
-	myprint("Exception in url shortener: %s: %s" % (type, value))
+	myprint("Exception in Sender::Process: %s: %s" % (type, value))
     
 
 	# end link shorten
@@ -185,7 +197,9 @@ class UrlBot(object):
     
     while True:
       try:
-	info = socket.getaddrinfo( network[random.randrange(len(network))], port )
+	net = network[random.randrange(len(network))]
+	myprint("Looking up %s" % net)
+	info = socket.getaddrinfo( net, port )
 	myprint(info[0])
         self.irc = socket.socket ( info[0][0], socket.SOCK_STREAM )
         self.irc.settimeout(irc_timeout)
@@ -262,8 +276,13 @@ class UrlBot(object):
               if nick_bool and time.time() > nick_next:
                 self.send ( u'NICK %s' % nick )
                 nick_bool=False
-      except () as e:
-        myprint("Exception in irc thread: %s" % e)
+      except (KeyboardInterrupt,):
+	myprint("KeyboardInterrupt detected, raising...")
+	raise
+      except:
+        type, value, tb = sys.exc_info()
+        myprint("Exception in Urlbot::Init: %s: %s" % (type, value))
+
       finally:
         if self.irc:
             try: self.irc.close()
@@ -331,5 +350,6 @@ if __name__ == '__main__' :
   try:
     UrlBot(**params)
   except (KeyboardInterrupt,):
+    myprint("Keyboard interrupt received, exiting.")
     exit(0)
 
