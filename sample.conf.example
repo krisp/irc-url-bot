@@ -10,7 +10,7 @@ params = {
 #'irc_timeout':360.0,
 #'nickserv_pass':None,
 #'prefer_ipv6':True,
-
+#'source_addr':('sourceip.host',0)
 # Misc
 #'debug':0,
 #'charset':'utf-8',

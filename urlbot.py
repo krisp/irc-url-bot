@@ -171,7 +171,7 @@ class Sender(object):
 
 
 class UrlBot(object):
-  def __init__(self, network, chans, nick, port=6667, debug=0, title_length=300, max_page_size=1048576, irc_timeout=360.0, message_delay=3, charset='utf-8', nickserv_pass=None, dbfile=None, mysql=None, bitly=None, prefer_ipv6=False):
+  def __init__(self, network, chans, nick, port=6667, debug=0, title_length=300, max_page_size=1048576, irc_timeout=360.0, message_delay=3, charset='utf-8', nickserv_pass=None, dbfile=None, mysql=None, bitly=None, prefer_ipv6=False, source_addr=('',0)):
     self.chans=chans
     self.nick=nick
     self.title_length=title_length
@@ -188,9 +188,9 @@ class UrlBot(object):
     self.last_message=0
     self.networkidx=0
     self.message_delay=message_delay
-    self.dbfile = dbfile
-    self.mysql = mysql
-    self.bitly = bitly
+    self.dbfile=dbfile
+    self.mysql=mysql
+    self.bitly=bitly
     
     self.url_regexp=re.compile("""((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))""")
     self.math_regexp=re.compile(":\d")
@@ -203,12 +203,9 @@ class UrlBot(object):
         ipvx = list([filter((lambda x: x[0] == 10), info), filter((lambda x: x[0] == 2), info)])
         srv = ipvx[0][0] if (len(ipvx[0]) and prefer_ipv6) else ipvx[1][0]
 
-        self.irc = socket.socket ( srv[0], socket.SOCK_STREAM )
-        self.irc.settimeout(irc_timeout)
-        myprint("Connection to irc %s" % srv[4][0] )
-        self.irc.connect ( ( srv[4][0], srv[4][1] ) )
+        myprint("Connecting to irc %s" % srv[4][0] )
+  	self.irc = socket.create_connection( srv[4][:2], irc_timeout, source_addr ) 
 	
-        #print(self.irc.recv ( 4096 ))
         self.send ( u'USER %s %s %s :hello there' % (nick,nick,nick) )
         self.send ( u'NICK %s' % nick )
         while True:
@@ -282,9 +279,9 @@ class UrlBot(object):
       except (KeyboardInterrupt,):
 	myprint("KeyboardInterrupt detected, raising...")
 	raise
-      except:
-        type, value, tb = sys.exc_info()
-        myprint("Exception in Urlbot::Init: %s: %s" % (type, value))
+      #except:
+      #  type, value, tb = sys.exc_info()
+      #  myprint("Exception in Urlbot::Init: %s: %s" % (type, value))
 
       finally:
         if self.irc:
