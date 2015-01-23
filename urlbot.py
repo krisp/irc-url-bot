@@ -171,7 +171,7 @@ class Sender(object):
 
 
 class UrlBot(object):
-  def __init__(self, network, chans, nick, port=6667, debug=0, title_length=300, max_page_size=1048576, irc_timeout=360.0, message_delay=3, charset='utf-8', nickserv_pass=None, dbfile=None, mysql=None, bitly=None):
+  def __init__(self, network, chans, nick, port=6667, debug=0, title_length=300, max_page_size=1048576, irc_timeout=360.0, message_delay=3, charset='utf-8', nickserv_pass=None, dbfile=None, mysql=None, bitly=None, prefer_ipv6=False):
     self.chans=chans
     self.nick=nick
     self.title_length=title_length
@@ -197,14 +197,23 @@ class UrlBot(object):
     
     while True:
       try:
-	net = network[random.randrange(len(network))]
+       for net in network:
 	myprint("Looking up %s" % net)
-	info = socket.getaddrinfo( net, port )
-	myprint(info[0])
-        self.irc = socket.socket ( info[0][0], socket.SOCK_STREAM )
+        info = socket.getaddrinfo( net, 6667)
+        srv = None
+        if prefer_ipv6:
+          for i in info:
+            if i[0] == 10:
+              srv = i
+              break
+        if srv is None:
+          srv = info[0]
+
+	myprint(srv)
+        self.irc = socket.socket ( srv[0], socket.SOCK_STREAM )
         self.irc.settimeout(irc_timeout)
-        myprint("Connection to irc %s" % info[0][4][0] )
-        self.irc.connect ( ( info[0][4][0], info[0][4][1] ) )
+        myprint("Connection to irc %s" % srv[4][0] )
+        self.irc.connect ( ( srv[4][0], srv[4][1] ) )
 	
         #print(self.irc.recv ( 4096 ))
         self.send ( u'USER %s %s %s :hello there' % (nick,nick,nick) )
