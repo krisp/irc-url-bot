@@ -279,9 +279,9 @@ class UrlBot(object):
       except (KeyboardInterrupt,):
 	myprint("KeyboardInterrupt detected, raising...")
 	raise
-      #except:
-      #  type, value, tb = sys.exc_info()
-      #  myprint("Exception in Urlbot::Init: %s: %s" % (type, value))
+      except:
+        type, value, tb = sys.exc_info()
+        myprint("Exception in Urlbot::Init: %s: %s" % (type, value))
 
       finally:
         if self.irc:
