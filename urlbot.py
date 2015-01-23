@@ -286,7 +286,9 @@ class UrlBot(object):
 
       finally:
         if self.irc:
-            try: self.irc.close()
+            try:
+		self.send(u"QUIT :Quitting") 
+		self.irc.close()
             except: pass
         connected=False
         time.sleep(2)
@@ -349,7 +351,7 @@ if __name__ == '__main__' :
     f.close()
 
   try:
-    UrlBot(**params)
+    u = UrlBot(**params)
   except (KeyboardInterrupt,):
     myprint("Keyboard interrupt received, exiting.")
     exit(0)
