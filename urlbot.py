@@ -86,7 +86,6 @@ class DBConnector:
     self.shorturl=shorturl
 
   def start(self):
-    self.db = sqlite3.connect(self.dbfile)
     self.thread.start()
 
   def join(self):
@@ -98,6 +97,7 @@ class DBConnector:
   def run(self):
     if self.dbfile is not None:
       try:
+        self.db = sqlite3.connect(self.dbfile)
 	c = self.db.cursor()
 	c.execute('''create table if not exists urlbot (date text, shorturl text, longurl text, chan text, nick text)''')
 	db.commit()
@@ -157,7 +157,7 @@ class Sender(object):
 
         title = "%s (%s)" % (shorturl, title)
 
-	self.urlbot.say(self.to, html_entity_decode(title.replace('\n', ' ').strip()))
+	self.urlbot.notice(self.to, html_entity_decode(title.replace('\n', ' ').strip()))
 
 	DBConnector(shorturl, self.url, self.src, self.to, dbfile=self.dbfile).start()
 	
@@ -332,7 +332,7 @@ if __name__ == '__main__' :
     if params[arg]: return None
     else: raise ValueError("Parameter %s is mandatory" % arg)
 
-  confdir = get_param('--confdir') or os.path.dirname(os.path.realpath(__file__))
+  confdir = get_param('--conf') or os.path.dirname(os.path.realpath(__file__))
   pidfile = get_param('--pidfile')
 
   if len(sys.argv)>1:
