@@ -279,6 +279,9 @@ class UrlBot(object):
 		  self.notice(data_split[0].split(':')[1].split('!')[0], "\x01PING %s" % data_split[4])
 		if data_split[3] == ":\x01VERSION\x01\r":
 		  self.notice(data_split[0].split(':')[1].split('!')[0], "\x01VERSION %s\x01\r" % VERSION)
+		if data_split[3] == ":\x01TIME\x01\r":
+		  self.notice(data_split[0].split(':')[1].split('!')[0], "\x01TIME %s\x01\r" %
+			datetime.datetime.now().strftime("%a %b %d %H:%M:%S %Y"))
             if connected:
               if nick_bool and time.time() > nick_next:
                 self.send ( u'NICK %s' % nick )
