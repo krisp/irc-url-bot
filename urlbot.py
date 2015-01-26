@@ -26,6 +26,8 @@ import random
 import bitly_api
 from py_expression_eval import Parser
 
+VERSION = "urlbot based on irc-url-bot"
+
 
 html_pattern = re.compile("&(\w+?);")
 html_pattern2 = re.compile("&#([0-9]+);")
@@ -100,15 +102,16 @@ class DBConnector:
         self.db = sqlite3.connect(self.dbfile)
 	c = self.db.cursor()
 	c.execute('''create table if not exists urlbot (date text, shorturl text, longurl text, chan text, nick text)''')
-	db.commit()
+	self.db.commit()
 	c.execute('''insert into urlbot(date,shorturl,longurl,chan,nick) values (?,?,?,?,?)''', (date(), self.shorturl, self.url, self.to, self.src))
-	db.commit()
+	self.db.commit()
+	self.db.close()
       except: 
 	type, value, tb = sys.exc_info()
 	myprint("Error adding url to database: %s: %s" % (type, value.message))
    
 
-class Sender(object):
+class URLProcessor(object):
   def __init__(self, urlbot, src, to, url, at_time, dbfile, bitly):
     self.thread = Thread(target=self.process)
     self.to = to
@@ -163,7 +166,7 @@ class Sender(object):
 	
     except:
         type, value, tb = sys.exc_info()
-	myprint("Exception in Sender::Process: %s: %s" % (type, value))
+	myprint("Exception in URLProcessor::Process: %s: %s" % (type, value))
     
 
 	# end link shorten
@@ -260,7 +263,7 @@ class UrlBot(object):
                         url=url[0]
                         if not url.startswith('http'):
                             url='http://'+url
-                        Sender(self, src, to, url, self.last_message, self.dbfile, self.bitly).start()
+                        URLProcessor(self, src, to, url, self.last_message, self.dbfile, self.bitly).start()
                         self.last_message = max(time.time(), self.last_message) + self.message_delay
 		    
                     m = re.match(self.math_regexp,data_split[3])
@@ -272,7 +275,10 @@ class UrlBot(object):
 		        self.say(to, x)
 		      except:
 		        myprint("Exception parsing math")
-
+	        if data_split[3] == ":\x01PING":
+		  self.notice(data_split[0].split(':')[1].split('!')[0], "\x01PING %s" % data_split[4])
+		if data_split[3] == ":\x01VERSION\x01\r":
+		  self.notice(data_split[0].split(':')[1].split('!')[0], "\x01VERSION %s\x01\r" % VERSION)
             if connected:
               if nick_bool and time.time() > nick_next:
                 self.send ( u'NICK %s' % nick )
