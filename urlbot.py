@@ -158,9 +158,9 @@ class URLProcessor(object):
 	if shorturl is None:
 	  return
 
-        title = "%s (%s)" % (shorturl, title)
+        title = "%s's link: %s (%s)" % (self.src, shorturl, title)
 
-	self.urlbot.notice(self.to, html_entity_decode(title.replace('\n', ' ').strip()))
+	self.urlbot.say(self.to, html_entity_decode(title.replace('\n', ' ').strip()))
 
 	DBConnector(shorturl, self.url, self.src, self.to, dbfile=self.dbfile).start()
 	
@@ -277,11 +277,11 @@ class UrlBot(object):
 		        myprint("Exception parsing math")
 		if data_split[3].startswith(":\x01"):
 	          if data_split[3] == ":\x01PING":
-		    self.notice(data_split[0].split(':')[1].split('!')[0], "\x01PING %s" % data_split[4])
+		    self.notice(src, "\x01PING %s" % data_split[4])
 		  elif data_split[3] == ":\x01VERSION\x01\r":
-		    self.notice(data_split[0].split(':')[1].split('!')[0], "\x01VERSION %s\x01\r" % VERSION)
+		    self.notice(src, "\x01VERSION %s\x01\r" % VERSION)
 		  elif data_split[3] == ":\x01TIME\x01\r":
-		    self.notice(data_split[0].split(':')[1].split('!')[0], "\x01TIME %s\x01\r" %
+		    self.notice(src, "\x01TIME %s\x01\r" %
 			datetime.datetime.now().strftime("%a %b %d %H:%M:%S %Y"))
                   myprint("CTCP %s request from %s" % (data_split[3].replace(":\x01",'').strip(), data_split[0].split(':')[1]))
             if connected:
